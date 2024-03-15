@@ -445,7 +445,7 @@ class CreateMeasurement:
         )
         start = time.time()
         progress_report_unit = records // 100
-        with open(file_name, "w") as f:
+        with open(file_name, "w", encoding="utf-8") as f:
             for i in range(records):
                 station, measurement = self.generateSingleMeasurement(std_dev=std_dev)
                 f.write(f"{station}{sep}{measurement:.1f}\n")
