@@ -1,6 +1,7 @@
 import os
 import multiprocessing as mp
 import time
+import argparse
 
 def get_file_chunks(
     filename: str,
@@ -54,17 +55,20 @@ def _process_file_chunk(
     filename: str,
     chunk_start: int,
     chunk_end: int,
-    sep: str = ";"
 ) -> dict: 
-    """Process chunk file in different processes"""
-    result = {}
+    """Process file chunk in a different process"""
+    result = dict()
 
     with open(filename, "r", encoding="utf-8") as f:
         f.seek(chunk_start)
 
-        while f.tell() < chunk_end:
-            line = f.readline().strip().split(sep)
-            location, measurement = line[0], float(line[1])
+        for line in f:
+            chunk_start += len(line)
+            if chunk_start > chunk_end:
+                break
+            
+            data = line.replace("\n", "").split(";")
+            location, measurement = data[0], float(data[1])
 
             if location not in result:
                 result[location] = [
@@ -84,19 +88,17 @@ def _process_file_chunk(
     
     return result
 
-def printMeasurements(result: dict):
+def display_measurements(result: dict):
     """Print the measurements in sorted order"""
-    result_keys = list(result.keys())
-    result_keys.sort()
+    sorted_result = sorted(result.items())
 
-    print("{{", end="")
-    for location in result_keys:
-        measurements = result[location]
+    print("{", end="")
+    for location, measurements in sorted_result:
         print(
-            f"{location}: {measurements[0]:.1f}/{measurements[2]/measurements[3] if measurements[3] != 0 else 0:.1f}/{measurements[1]:.1f}",
-            end=", {" if location != result_keys[-1] else ""
+            f"{location}={measurements[0]:.1f}/{measurements[2]/measurements[3] if measurements[3] != 0 else 0:.1f}/{measurements[1]:.1f}",
+            end=", " if location != sorted_result[-1] else ""
         )
-    print("}}", end="")
+    print("\b\b}")
 
 def process_file(
     file_chunks: list,
@@ -104,7 +106,7 @@ def process_file(
 ):
     """Process data file"""
     start_time = time.time()
-
+    
     with mp.Pool(cpu_count) as p:
         # process each chunk in a separate process 
         chunk_results = p.starmap(
@@ -113,7 +115,7 @@ def process_file(
         )
     
     # combine results from each process
-    result = {}
+    result = dict()
     for chunk_result in chunk_results:
         for location, measurements in chunk_result.items():
             if location not in result:
@@ -127,9 +129,25 @@ def process_file(
                 _result[2] += measurements[2]
                 _result[3] += measurements[3]
     
+    # display results
     print(f"Time taken: {time.time() - start_time:.1f}s")
-    printMeasurements(result)
+    display_measurements(result)
+
+def parse_args():
+    parser = argparse.ArgumentParser("Process measurements file")
+
+    parser.add_argument(
+        "-f",
+        "--file",
+        dest="file",
+        help="Measurement file name (default is measurement.txt)",
+        type=str,
+        default="measurement.txt",
+    )
+
+    return parser.parse_args()
 
 if __name__ == "__main__":
-    cpu_count , *file_chunks = get_file_chunks("measurements.txt")
+    args = parse_args()
+    cpu_count , *file_chunks = get_file_chunks(args.file)
     process_file(file_chunks[0], cpu_count)

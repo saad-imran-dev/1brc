@@ -1,6 +1,7 @@
 # time python3 calculateAverage.py
 import os
 import multiprocessing as mp
+import time
 
 
 def get_file_chunks(
@@ -92,6 +93,7 @@ def process_file(
     start_end: list,
 ) -> dict:
     """Process data file"""
+    start_time = time.time()
     with mp.Pool(cpu_count) as p:
         # Run chunks in parallel
         chunk_results = p.starmap(
@@ -115,6 +117,7 @@ def process_file(
                 _result[3] += measurements[3]
 
     # Print final results
+    print(f"Time taken: {time.time() - start_time:.1f}s")
     print("{", end="")
     for location, measurements in sorted(result.items()):
         print(
@@ -125,5 +128,5 @@ def process_file(
 
 
 if __name__ == "__main__":
-    cpu_count, *start_end = get_file_chunks("measurements.txt")
+    cpu_count, *start_end = get_file_chunks("measurements_100mil.txt")
     process_file(cpu_count, start_end[0])
